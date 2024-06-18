@@ -62,7 +62,11 @@ def police_action(data):
         players[target]['points'] = 0
     else:
         players[police]['points'] = 0
-        players[target]['points'] += points[players[target]['card']]
+
+        # Only add points if not the caught person
+        for player, info in players.items():
+            if player != target:
+                info['points'] += points[info['card']]
 
     emit('update', players, room=room_name)
     emit('round_complete', players, room=room_name)
