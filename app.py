@@ -62,10 +62,7 @@ def police_action(data):
         players[target]['points'] = 0
     else:
         players[police]['points'] = 0
-        if players[target]['card'] == 'Robbery':
-            players[target]['points'] += points["Robbery"]
-        elif players[target]['card'] == 'Thief':
-            players[target]['points'] += points["Thief"]
+        players[target]['points'] += points[players[target]['card']]
 
     emit('update', players, room=room_name)
     emit('round_complete', players, room=room_name)
