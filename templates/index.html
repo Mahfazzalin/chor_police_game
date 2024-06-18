@@ -16,6 +16,7 @@
         </div>
         <div id="game" class="mt-4 hidden">
             <h2 id="player-name" class="text-xl font-bold"></h2>
+            <p id="round-number" class="text-lg font-semibold text-center mt-2"></p>
             <button id="start-shuffle" onclick="startShuffle()" class="bg-green-500 text-white p-2 mt-2 hidden">Start Shuffle</button>
             <div id="dashboard" class="mt-4">
                 <!-- Player's dashboard will be updated here -->
@@ -23,6 +24,7 @@
         </div>
         <div id="game-over" class="hidden">
             <h2 class="text-xl font-bold">Game Over</h2>
+            <p id="game-over-round" class="font-semibold text-lg"></p>
             <div id="rankings">
                 <!-- Rankings will be displayed here -->
             </div>
@@ -34,6 +36,8 @@
         var king;
         var police;
         var players = {};
+        var roundNumber;
+        var maxRounds;
         var room = 'game_room';
 
         function joinGame() {
@@ -48,14 +52,20 @@
             socket.emit('start_shuffle');
         }
 
-        socket.on('start_shuffle', function() {
+        socket.on('start_shuffle', function(data) {
+            roundNumber = data.round;
+            maxRounds = data.max_rounds;
+            document.getElementById('round-number').innerText = `Round ${roundNumber}/${maxRounds}`;
             if (username == Object.keys(players)[0]) {
                 document.getElementById('start-shuffle').classList.remove('hidden');
             }
         });
 
         socket.on('cards_assigned', function(data) {
-            players = data;
+            players = data.players;
+            roundNumber = data.round;
+            maxRounds = data.max_rounds;
+            document.getElementById('round-number').innerText = `Round ${roundNumber}/${maxRounds}`;
             var dashboard = document.getElementById('dashboard');
             dashboard.innerHTML = `<p>Your role: ${players[username].card}</p>`;
             king = Object.keys(players).find(key => players[key].card === 'King');
@@ -78,34 +88,42 @@
 
         socket.on('police_order', function(data) {
             var dashboard = document.getElementById('dashboard');
-            dashboard.innerHTML += `<p>King ordered to catch: ${data.command}</p>`;
-
+            dashboard.innerHTML += `<p>King's order: Catch the ${data.command}</p>`;
             if (username === police) {
-                dashboard.innerHTML += `
-                    <p>Choose a player to catch:</p>
-                    ${Object.keys(players).filter(player => player !== king && player !== police).map(player => 
-                        `<button onclick="policeAction('${player}', '${data.command}')" class="bg-red-500 text-white p-2 mt-2">${player}</button>`
-                    ).join('')}
-                `;
+                let options = Object.keys(players).filter(p => p !== police && players[p].card !== 'King').map(p => 
+                    `<button onclick="policeAction('${p}', '${data.command}')" class="bg-red-500 text-white p-2 mt-2">Catch ${p}</button>`
+                ).join('');
+                dashboard.innerHTML += `<p>As Police, choose a player to catch</p>${options}`;
             }
         });
 
         socket.on('update', function(data) {
-            players = data;
+            players = data.players;
             var dashboard = document.getElementById('dashboard');
             dashboard.innerHTML = Object.keys(players).map(player => 
                 `<p>${player} (${players[player].card}): ${players[player].points} points</p>`
             ).join('');
         });
 
-        socket.on('game_over', function(rankings) {
+        socket.on('round_complete', function(data) {
+            players = data.players;
+            roundNumber = data.round;
+            document.getElementById('round-number').innerText = `Round ${roundNumber}/${maxRounds}`;
+            var dashboard = document.getElementById('dashboard');
+            dashboard.innerHTML = Object.keys(players).map(player => 
+                `<p>${player} (${players[player].card}): ${players[player].points} points</p>`
+            ).join('');
+        });
+
+        socket.on('game_over', function(data) {
             document.getElementById('game').classList.add('hidden');
+            document.getElementById('game-over').classList.remove('hidden');
+            document.getElementById('game-over-round').innerText = `Game Over! Rounds played: ${data.round}`;
             var rankingsDiv = document.getElementById('rankings');
             rankingsDiv.innerHTML = '<h3>Rankings:</h3>';
-            rankings.forEach(function(rank, index) {
+            data.rankings.forEach(function(rank, index) {
                 rankingsDiv.innerHTML += `<p>${index + 1}. ${rank.username}: ${rank.points} points</p>`;
             });
-            document.getElementById('game-over').classList.remove('hidden');
         });
 
         function giveOrder(command) {
@@ -118,4 +136,5 @@
     </script>
 </body>
 </html>
+
 
