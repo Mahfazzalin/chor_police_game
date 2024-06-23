@@ -1,3 +1,5 @@
+#game version 1.0.4.9
+#auther: Mahfazzalin Shawon Reza
 from flask import Flask, render_template
 from flask_socketio import SocketIO, emit, join_room
 import random
