@@ -1,5 +1,3 @@
-<!-- #game version 1.0.4.9
-#auther: Mahfazzalin Shawon Reza -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -30,6 +28,7 @@
             <div id="rankings">
                 <!-- Rankings will be displayed here -->
             </div>
+            <button id="rematch-button" onclick="rematchGame()" class="bg-yellow-500 text-white p-2 mt-4">Rematch</button>
         </div>
     </div>
     <script>
@@ -135,8 +134,12 @@
         function policeAction(target, command) {
             socket.emit('police_action', {'police': username, 'target': target, 'command': command, 'king': king});
         }
+
+        function rematchGame() {
+            socket.emit('rematch');
+            document.getElementById('game-over').classList.add('hidden');
+            document.getElementById('game').classList.remove('hidden');
+        }
     </script>
 </body>
 </html>
-
-
