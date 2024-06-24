@@ -3,16 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chor Police</title>
+    <title>Chor Police - Landing Page</title>
     <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
 <body class="bg-gray-200">
     <div class="container mx-auto p-4">
-        <h1 class="text-2xl font-bold text-center">Welcome to Chor Police</h1>
-        <div id="login" class="text-center mt-4">
-            <input id="username" class="border p-2" placeholder="Enter your name"/>
-            <button onclick="joinGame()" class="bg-blue-500 text-white p-2 ml-2">Join Game</button>
+        <h1 class="text-2xl font-bold text-center">Chor Police</h1>
+        <div id="landing" class="text-center mt-4">
+            <button onclick="createRoom()" class="bg-blue-500 text-white p-2 m-2">Create Room</button>
+            <input id="room-key" class="border p-2" placeholder="Enter Room Key"/>
+            <button onclick="joinRoom()" class="bg-green-500 text-white p-2 m-2">Join Room</button>
         </div>
         <div id="game" class="mt-4 hidden">
             <h2 id="player-name" class="text-xl font-bold"></h2>
@@ -34,66 +35,66 @@
     <script>
         var socket = io();
         var username;
+        var roomKey;
         var king;
         var police;
         var players = {};
         var roundNumber;
         var maxRounds;
-        var room = 'game_room';
 
-        function joinGame() {
-            username = document.getElementById('username').value;
-            socket.emit('join', {'username': username});
-            document.getElementById('login').classList.add('hidden');
+        function createRoom() {
+            socket.emit('create_room');
+        }
+
+        socket.on('room_created', function(data) {
+            roomKey = data.room_key;
+            alert(`Room created! Your room key is: ${roomKey}`);
+            document.getElementById('room-key').value = roomKey;
+        });
+
+        function joinRoom() {
+            username = prompt("Enter your name:");
+            roomKey = document.getElementById('room-key').value;
+            socket.emit('join_room', {'room_key': roomKey, 'username': username});
+            document.getElementById('landing').classList.add('hidden');
             document.getElementById('game').classList.remove('hidden');
             document.getElementById('player-name').innerText = `Hello, ${username}`;
         }
 
         function startShuffle() {
-            socket.emit('start_shuffle');
+            socket.emit('start_shuffle', {'room_key': roomKey});
         }
 
         socket.on('start_shuffle', function(data) {
             roundNumber = data.round;
             maxRounds = data.max_rounds;
             document.getElementById('round-number').innerText = `Round ${roundNumber}/${maxRounds}`;
-            if (username == Object.keys(players)[0]) {
-                document.getElementById('start-shuffle').classList.remove('hidden');
-            }
         });
 
         socket.on('cards_assigned', function(data) {
             players = data.players;
-            roundNumber = data.round;
-            maxRounds = data.max_rounds;
-            document.getElementById('round-number').innerText = `Round ${roundNumber}/${maxRounds}`;
             var dashboard = document.getElementById('dashboard');
-            dashboard.innerHTML = `<p>Your role: ${players[username].card}</p>`;
-            king = Object.keys(players).find(key => players[key].card === 'King');
-            police = Object.keys(players).find(key => players[key].card === 'Police');
-
-            dashboard.innerHTML += `<p>King: ${king}</p><p>Police: ${police}</p>`;
-
-            if (username === king) {
-                dashboard.innerHTML += `
-                    <p>As King, order the police to catch Thief or Robbery</p>
-                    <button onclick="giveOrder('Thief')" class="bg-yellow-500 text-white p-2 mt-2">Catch Thief</button>
-                    <button onclick="giveOrder('Robbery')" class="bg-yellow-500 text-white p-2 mt-2">Catch Robbery</button>
-                `;
-            } else if (username === police) {
-                dashboard.innerHTML += `<p>As Police, wait for the King's order</p>`;
-            } else {
-                dashboard.innerHTML += `<p>Wait for the Police's action</p>`;
+            dashboard.innerHTML = Object.keys(players).map(player => 
+                `<p>${player} (${players[player].card}): ${players[player].points} points</p>`
+            ).join('');
+            
+            if (players[username].card === "King") {
+                var kingOptions = `<button onclick="giveOrder('Thief')" class="bg-red-500 text-white p-2 mt-2">Catch Thief</button>
+                                   <button onclick="giveOrder('Robbery')" class="bg-red-500 text-white p-2 mt-2">Catch Robbery</button>`;
+                dashboard.innerHTML += `<div>${kingOptions}</div>`;
+            }
+            if (players[username].card === "Police") {
+                king = Object.keys(players).find(p => players[p].card === "King");
+                document.getElementById('dashboard').innerHTML += `<p>Waiting for King (${king}) to give an order...</p>`;
             }
         });
 
         socket.on('police_order', function(data) {
-            var dashboard = document.getElementById('dashboard');
-            dashboard.innerHTML += `<p>King's order: Catch the ${data.command}</p>`;
-            if (username === police) {
-                let options = Object.keys(players).filter(p => p !== police && players[p].card !== 'King').map(p => 
+            if (players[username].card === "Police") {
+                var options = Object.keys(players).filter(p => p !== username && p !== data.king).map(p => 
                     `<button onclick="policeAction('${p}', '${data.command}')" class="bg-red-500 text-white p-2 mt-2">Catch ${p}</button>`
                 ).join('');
+                var dashboard = document.getElementById('dashboard');
                 dashboard.innerHTML += `<p>As Police, choose a player to catch</p>${options}`;
             }
         });
@@ -128,15 +129,15 @@
         });
 
         function giveOrder(command) {
-            socket.emit('king_order', {'king': username, 'command': command});
+            socket.emit('king_order', {'king': username, 'command': command, 'room_key': roomKey});
         }
 
         function policeAction(target, command) {
-            socket.emit('police_action', {'police': username, 'target': target, 'command': command, 'king': king});
+            socket.emit('police_action', {'police': username, 'target': target, 'command': command, 'king': king, 'room_key': roomKey});
         }
 
         function rematchGame() {
-            socket.emit('rematch');
+            socket.emit('rematch', {'room_key': roomKey});
             document.getElementById('game-over').classList.add('hidden');
             document.getElementById('game').classList.remove('hidden');
         }
