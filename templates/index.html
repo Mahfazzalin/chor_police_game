@@ -41,6 +41,7 @@
         var players = {};
         var roundNumber;
         var maxRounds;
+        var currentTurn;
 
         function createRoom() {
             socket.emit('create_room');
@@ -68,15 +69,23 @@
         socket.on('start_shuffle', function(data) {
             roundNumber = data.round;
             maxRounds = data.max_rounds;
+            currentTurn = data.current_turn;
             document.getElementById('round-number').innerText = `Round ${roundNumber}/${maxRounds}`;
+            if (currentTurn === Object.keys(players).indexOf(username)) {
+                document.getElementById('start-shuffle').classList.remove('hidden');
+            }
         });
 
         socket.on('cards_assigned', function(data) {
             players = data.players;
+            roundNumber = data.round;
+            maxRounds = data.max_rounds;
+            currentTurn = data.current_turn;
             var dashboard = document.getElementById('dashboard');
             dashboard.innerHTML = Object.keys(players).map(player => 
                 `<p>${player} (${players[player].card}): ${players[player].points} points</p>`
             ).join('');
+            document.getElementById('round-number').innerText = `Round ${roundNumber}/${maxRounds}`;
             
             if (players[username].card === "King") {
                 var kingOptions = `<button onclick="giveOrder('Thief')" class="bg-red-500 text-white p-2 mt-2">Catch Thief</button>
@@ -143,5 +152,4 @@
         }
     </script>
 </body>
-    
 </html>
