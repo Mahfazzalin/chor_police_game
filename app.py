@@ -47,7 +47,7 @@ def start_shuffle(data):
             player['card'] = card.split('=')[1]
         room['round_counter'] += 1
         room['current_turn'] = (room['current_turn'] + 1) % 4
-        emit('cards_assigned', {'players': room['players'], 'round': room['round_counter'], 'max_rounds': 20}, room=room_key)
+        emit('cards_assigned', {'players': room['players'], 'round': room['round_counter'], 'max_rounds': 20, 'current_turn': room['current_turn']}, room=room_key)
     if room['round_counter'] == 20:
         room['game_over'] = True
         emit('game_over', {'rankings': get_rankings(room_key), 'round': room['round_counter']}, room=room_key)
