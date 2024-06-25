@@ -21,7 +21,7 @@ def game_room(room_key):
     return render_template('game.html', room_key=room_key)
 
 @socketio.on('create_room')
-def on_create_room(data):
+def on_create_room():
     room_key = generate_room_key()
     rooms[room_key] = {'players': {}, 'round_counter': 0, 'current_turn': 0, 'game_over': False}
     emit('room_created', {'room_key': room_key})
