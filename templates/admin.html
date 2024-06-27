@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link href="/static/css/tailwind.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 p-5">
+    <div id="admin" class="container mx-auto">
+        <h1 class="text-2xl mb-3">Admin Dashboard</h1>
+        <div id="admin-stats">
+            <p>Rooms created today: <span id="rooms-today">0</span></p>
+            <p>Rooms created this week: <span id="rooms-week">0</span></p>
+            <p>Rooms created this month: <span id="rooms-month">0</span></p>
+            <p>Rooms created this year: <span id="rooms-year">0</span></p>
+            <p>Active rooms: <span id="active-rooms">0</span></p>
+            <p>Active players: <span id="active-players">0</span></p>
+            <p>Total players today: <span id="total-players-today">0</span></p>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="/static/js/admin.js"></script>
+    <script>
+        var socket = io();
+
+        socket.emit('get_admin_stats');
+
+        socket.on('admin_stats', function(data) {
+            document.getElementById('rooms-today').innerText = data.rooms_created_today;
+            document.getElementById('rooms-week').innerText = data.rooms_created_week;
+            document.getElementById('rooms-month').innerText = data.rooms_created_month;
+            document.getElementById('rooms-year').innerText = data.rooms_created_year;
+            document.getElementById('active-rooms').innerText = data.active_rooms;
+            document.getElementById('active-players').innerText = data.active_players;
+            document.getElementById('total-players-today').innerText = data.total_players_today;
+        });
+    </script>
+</body>
+</html>
