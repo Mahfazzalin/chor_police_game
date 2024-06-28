@@ -12,10 +12,12 @@
         <div id="join_game" class="mb-4">
             <input id="username" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-2" type="text" placeholder="Your Name">
             <input id="room_key" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-2" type="text" placeholder="Room Key">
-            <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" onclick="createRoom()">Create Room</button>
-            <button class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded" onclick="joinRoom()">Join Game</button>
+            <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" onclick="joinRoom()">Join Game</button>
+            <button class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded" onclick="createRoom()">Create Room</button>
         </div>
         <div id="game_dashboard" class="hidden">
+            <button id="start_shuffle" class="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded hidden" onclick="startShuffle()">Start Shuffle</button>
+            <div id="points" class="my-4"></div>
             <h2 class="text-2xl font-bold">Game Dashboard</h2>
             <input id="message" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-2" type="text" placeholder="Type a message">
             <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" onclick="sendMessage()">Send</button>

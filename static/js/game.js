@@ -15,7 +15,6 @@ socket.on('room_created', (data) => {
     alert(`Room created with key: ${data.room_key}`);
     document.getElementById('join_game').classList.add('hidden');
     document.getElementById('game_dashboard').classList.remove('hidden');
-    socket.emit('start_game', { room_key: data.room_key });
 });
 
 socket.on('joined_room', (data) => {
@@ -24,20 +23,24 @@ socket.on('joined_room', (data) => {
     document.getElementById('game_dashboard').classList.remove('hidden');
 });
 
-socket.on('start_game', () => {
-    alert('Game is starting!');
+socket.on('all_players_joined', () => {
+    alert('All players joined. Starting game...');
+    document.getElementById('start_shuffle').classList.remove('hidden');
 });
+
+function startShuffle() {
+    const room_key = document.getElementById('room_key').value;
+    socket.emit('start_shuffle', { room_key: room_key });
+}
 
 socket.on('cards_assigned', (data) => {
     alert(`Cards assigned: ${JSON.stringify(data)}`);
-    for (let player in data) {
-        if (data[player] === "900=King") {
-            alert(`${player} is the King`);
-        }
-    }
+    const username = document.getElementById('username').value;
+    alert(`Your card: ${data[username]}`);
 });
 
-socket.on('identify_king', (data) => {
+socket.on('roles_assigned', (data) => {
+    alert(`King: ${data.king}, Police: ${data.police}`);
     if (data.king === document.getElementById('username').value) {
         const target = prompt("Who will Police catch? (Enter player name)");
         socket.emit('king_decision', { room_key: document.getElementById('room_key').value, target: target });
@@ -46,6 +49,14 @@ socket.on('identify_king', (data) => {
 
 socket.on('round_result', (data) => {
     alert(`Police caught ${data.target}. Points: ${JSON.stringify(data.points)}`);
+    document.getElementById('points').innerText = `Points: ${JSON.stringify(data.points)}`;
+});
+
+socket.on('next_shuffle', (data) => {
+    alert(`Next shuffle by: ${data.current_player}`);
+    if (data.current_player === document.getElementById('username').value) {
+        document.getElementById('start_shuffle').classList.remove('hidden');
+    }
 });
 
 socket.on('game_over', (data) => {
@@ -54,8 +65,11 @@ socket.on('game_over', (data) => {
     document.getElementById('game_over').classList.remove('hidden');
 });
 
-socket.on('error', (data) => {
-    alert(data.message);
+socket.on('receive_message', (data) => {
+    const messagesDiv = document.getElementById('messages');
+    const messageElem = document.createElement('p');
+    messageElem.innerText = data.message;
+    messagesDiv.appendChild(messageElem);
 });
 
 function sendMessage() {
@@ -63,13 +77,6 @@ function sendMessage() {
     const message = document.getElementById('message').value;
     socket.emit('send_message', { room_key: room_key, message: message });
 }
-
-socket.on('receive_message', (data) => {
-    const messagesDiv = document.getElementById('messages');
-    const messageElem = document.createElement('p');
-    messageElem.innerText = data.message;
-    messagesDiv.appendChild(messageElem);
-});
 
 function rematch() {
     // Logic for rematch goes here

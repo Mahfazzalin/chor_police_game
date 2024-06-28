@@ -20,7 +20,7 @@ def create_room(data):
     global room_count
     room_count += 1
     room_key = f"room{room_count}"
-    rooms[room_key] = {'players': [data['username']], 'round': 0}
+    rooms[room_key] = {'players': [data['username']], 'round': 0, 'current_player': 0}
     join_room(room_key)
     players[data['username']] = {'room': room_key, 'points': 0, 'card': None}
     emit('room_created', {'room_key': room_key, 'username': data['username']})
@@ -35,12 +35,12 @@ def join(data):
         players[username] = {'room': room_key, 'points': 0, 'card': None}
         emit('joined_room', {'username': username, 'room_key': room_key}, room=room_key)
         if len(rooms[room_key]['players']) == 4:
-            emit('start_game', room=room_key)
+            emit('all_players_joined', room=room_key)
     else:
         emit('error', {'message': 'Room is full or does not exist'})
 
-@socketio.on('start_game')
-def start_game(data):
+@socketio.on('start_shuffle')
+def start_shuffle(data):
     room_key = data['room_key']
     if room_key in rooms:
         shuffle_and_assign_cards(room_key)
@@ -51,7 +51,8 @@ def shuffle_and_assign_cards(room_key):
         players[player]['card'] = cards[i]
     emit('cards_assigned', {player: players[player]['card'] for player in rooms[room_key]['players']}, room=room_key)
     king = next(player for player in rooms[room_key]['players'] if players[player]['card'] == "900=King")
-    emit('identify_king', {'king': king}, room=room_key)
+    police = next(player for player in rooms[room_key]['players'] if players[player]['card'] == "800=Police")
+    emit('roles_assigned', {'king': king, 'police': police}, room=room_key)
 
 @socketio.on('king_decision')
 def king_decision(data):
@@ -59,17 +60,17 @@ def king_decision(data):
     target = data['target']
     king = next(player for player in rooms[room_key]['players'] if players[player]['card'] == "900=King")
     police = next(player for player in rooms[room_key]['players'] if players[player]['card'] == "800=Police")
-    thief_or_robber = target
-    if players[thief_or_robber]['card'] in ["600=Robbery", "400=Thief"]:
+    if players[target]['card'] in ["600=Robbery", "400=Thief"]:
         players[police]['points'] += 800
-        players[thief_or_robber]['points'] = 0
+        players[target]['points'] = 0
     else:
         players[police]['points'] = 0
-        players[thief_or_robber]['points'] += int(players[thief_or_robber]['card'].split('=')[0])
-    emit('round_result', {'police': police, 'target': thief_or_robber, 'points': {player: players[player]['points'] for player in rooms[room_key]['players']}}, room=room_key)
+        players[target]['points'] += int(players[target]['card'].split('=')[0])
+    emit('round_result', {'police': police, 'target': target, 'points': {player: players[player]['points'] for player in rooms[room_key]['players']}}, room=room_key)
     rooms[room_key]['round'] += 1
     if rooms[room_key]['round'] < 20:
-        shuffle_and_assign_cards(room_key)
+        rooms[room_key]['current_player'] = (rooms[room_key]['current_player'] + 1) % 4
+        emit('next_shuffle', {'current_player': rooms[room_key]['players'][rooms[room_key]['current_player']]}, room=room_key)
     else:
         winner = max(rooms[room_key]['players'], key=lambda player: players[player]['points'])
         emit('game_over', {'winner': winner, 'points': {player: players[player]['points'] for player in rooms[room_key]['players']}}, room=room_key)
