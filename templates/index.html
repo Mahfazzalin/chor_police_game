@@ -1,3 +1,5 @@
+<!-- #game version 1.0.4.9
+#auther: Mahfazzalin Shawon Reza -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,7 +14,9 @@
         <h1 class="text-2xl font-bold text-center">Welcome to Chor Police</h1>
         <div id="login" class="text-center mt-4">
             <input id="username" class="border p-2" placeholder="Enter your name"/>
-            <button onclick="joinGame()" class="bg-blue-500 text-white p-2 ml-2">Join Game</button>
+            <input id="room_key" class="border p-2 ml-2" placeholder="Enter room key"/>
+            <button onclick="createRoom()" class="bg-green-500 text-white p-2 ml-2">Create Room</button>
+            <button onclick="joinRoom()" class="bg-blue-500 text-white p-2 ml-2">Join Room</button>
         </div>
         <div id="game" class="mt-4 hidden">
             <h2 id="player-name" class="text-xl font-bold"></h2>
@@ -21,6 +25,14 @@
             <div id="dashboard" class="mt-4">
                 <!-- Player's dashboard will be updated here -->
             </div>
+            <div id="messages" class="mt-4">
+                <h3 class="text-lg font-semibold">Messages</h3>
+                <div id="message-box" class="border p-2 h-64 overflow-y-scroll">
+                    <!-- Messages will be displayed here -->
+                </div>
+                <input id="message" class="border p-2 mt-2 w-full" placeholder="Type a message"/>
+                <button onclick="sendMessage()" class="bg-blue-500 text-white p-2 mt-2">Send</button>
+            </div>
         </div>
         <div id="game-over" class="hidden">
             <h2 class="text-xl font-bold">Game Over</h2>
@@ -28,7 +40,6 @@
             <div id="rankings">
                 <!-- Rankings will be displayed here -->
             </div>
-            <button id="rematch-button" onclick="rematchGame()" class="bg-yellow-500 text-white p-2 mt-4">Rematch</button>
         </div>
     </div>
     <script>
@@ -39,19 +50,35 @@
         var players = {};
         var roundNumber;
         var maxRounds;
-        var room = 'game_room';
+        var room_key;
 
-        function joinGame() {
+        function createRoom() {
             username = document.getElementById('username').value;
-            socket.emit('join', {'username': username});
-            document.getElementById('login').classList.add('hidden');
-            document.getElementById('game').classList.remove('hidden');
-            document.getElementById('player-name').innerText = `Hello, ${username}`;
+            room_key = document.getElementById('room_key').value;
+            socket.emit('create_room', {'username': username, 'room_key': room_key});
+        }
+
+        function joinRoom() {
+            username = document.getElementById('username').value;
+            room_key = document.getElementById('room_key').value;
+            socket.emit('join_room', {'username': username, 'room_key': room_key});
         }
 
         function startShuffle() {
-            socket.emit('start_shuffle');
+            socket.emit('start_shuffle', {'room_key': room_key});
         }
+
+        socket.on('room_created', function(data) {
+            document.getElementById('login').classList.add('hidden');
+            document.getElementById('game').classList.remove('hidden');
+            document.getElementById('player-name').innerText = `Hello, ${data.username}`;
+        });
+
+        socket.on('joined_room', function(data) {
+            document.getElementById('login').classList.add('hidden');
+            document.getElementById('game').classList.remove('hidden');
+            document.getElementById('player-name').innerText = `Hello, ${data.username}`;
+        });
 
         socket.on('start_shuffle', function(data) {
             roundNumber = data.round;
@@ -127,18 +154,24 @@
             });
         });
 
+        socket.on('receive_message', function(data) {
+            var messageBox = document.getElementById('message-box');
+            messageBox.innerHTML += `<p><strong>${data.username}:</strong> ${data.message}</p>`;
+            messageBox.scrollTop = messageBox.scrollHeight;
+        });
+
         function giveOrder(command) {
-            socket.emit('king_order', {'king': username, 'command': command});
+            socket.emit('king_order', {'king': username, 'command': command, 'room_key': room_key});
         }
 
         function policeAction(target, command) {
-            socket.emit('police_action', {'police': username, 'target': target, 'command': command, 'king': king});
+            socket.emit('police_action', {'police': username, 'target': target, 'command': command, 'king': king, 'room_key': room_key});
         }
 
-        function rematchGame() {
-            socket.emit('rematch');
-            document.getElementById('game-over').classList.add('hidden');
-            document.getElementById('game').classList.remove('hidden');
+        function sendMessage() {
+            var message = document.getElementById('message').value;
+            socket.emit('send_message', {'username': username, 'message': message, 'room_key': room_key});
+            document.getElementById('message').value = '';
         }
     </script>
 </body>
