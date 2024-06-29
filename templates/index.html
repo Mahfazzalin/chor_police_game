@@ -1,5 +1,3 @@
-<!-- #game version 1.0.4.9
-#auther: Mahfazzalin Shawon Reza -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -14,6 +12,8 @@
         <h1 class="text-2xl font-bold text-center">Welcome to Chor Police</h1>
         <div id="login" class="text-center mt-4">
             <input id="username" class="border p-2" placeholder="Enter your name"/>
+            <button onclick="createRoom()" class="bg-blue-500 text-white p-2 ml-2">Create Room</button>
+            <input id="room-key" class="border p-2" placeholder="Enter room key"/>
             <button onclick="joinGame()" class="bg-blue-500 text-white p-2 ml-2">Join Game</button>
         </div>
         <div id="game" class="mt-4 hidden">
@@ -22,6 +22,11 @@
             <button id="start-shuffle" onclick="startShuffle()" class="bg-green-500 text-white p-2 mt-2 hidden">Start Shuffle</button>
             <div id="dashboard" class="mt-4">
                 <!-- Player's dashboard will be updated here -->
+            </div>
+            <div id="chat" class="mt-4">
+                <div id="messages" class="border p-2 h-64 overflow-y-scroll bg-white"></div>
+                <input id="message-input" class="border p-2 w-full mt-2" placeholder="Type a message..."/>
+                <button onclick="sendMessage()" class="bg-blue-500 text-white p-2 w-full mt-2">Send</button>
             </div>
         </div>
         <div id="game-over" class="hidden">
@@ -35,24 +40,49 @@
     <script>
         var socket = io();
         var username;
+        var roomKey;
         var king;
         var police;
         var players = {};
         var roundNumber;
         var maxRounds;
-        var room = 'game_room';
+
+        function createRoom() {
+            socket.emit('create_room');
+        }
 
         function joinGame() {
             username = document.getElementById('username').value;
-            socket.emit('join', {'username': username});
+            roomKey = document.getElementById('room-key').value;
+            socket.emit('join', {'username': username, 'room_key': roomKey});
             document.getElementById('login').classList.add('hidden');
             document.getElementById('game').classList.remove('hidden');
             document.getElementById('player-name').innerText = `Hello, ${username}`;
         }
 
         function startShuffle() {
-            socket.emit('start_shuffle');
+            socket.emit('start_shuffle', {'room_key': roomKey});
         }
+
+        function sendMessage() {
+            var message = document.getElementById('message-input').value;
+            socket.emit('send_message', {'username': username, 'room_key': roomKey, 'message': message});
+            document.getElementById('message-input').value = '';
+        }
+
+        socket.on('room_created', function(data) {
+            roomKey = data.room_key;
+            alert(`Room created with key: ${roomKey}`);
+            document.getElementById('room-key').value = roomKey;
+        });
+
+        socket.on('room_full', function() {
+            alert('Room is full.');
+        });
+
+        socket.on('room_not_found', function() {
+            alert('Room not found.');
+        });
 
         socket.on('start_shuffle', function(data) {
             roundNumber = data.round;
@@ -128,15 +158,19 @@
             });
         });
 
+        socket.on('receive_message', function(data) {
+            var messages = document.getElementById('messages');
+            messages.innerHTML += `<p><strong>${data.username}:</strong> ${data.message}</p>`;
+            messages.scrollTop = messages.scrollHeight;
+        });
+
         function giveOrder(command) {
-            socket.emit('king_order', {'king': username, 'command': command});
+            socket.emit('king_order', {'king': username, 'command': command, 'room_key': roomKey});
         }
 
         function policeAction(target, command) {
-            socket.emit('police_action', {'police': username, 'target': target, 'command': command, 'king': king});
+            socket.emit('police_action', {'police': username, 'target': target, 'command': command, 'king': king, 'room_key': roomKey});
         }
     </script>
 </body>
 </html>
-
-
