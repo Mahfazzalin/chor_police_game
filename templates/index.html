@@ -1,176 +1,634 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chor Police</title>
-    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chor Police</title>
+  <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+  <style>
+    :root {
+      --radius: 10px;
+      --border: #e2e8f0;
+      --muted: #64748b;
+      --surface: #f8fafc;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #f1f5f9; font-family: system-ui, -apple-system, sans-serif; color: #1e293b; }
+
+    /* ── Screens ── */
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* ── Card / Panel ── */
+    .card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 18px; border-radius: 8px;
+      border: 1px solid var(--border); background: #fff;
+      color: #1e293b; font-size: 14px; cursor: pointer;
+      transition: background .15s, transform .1s;
+    }
+    .btn:hover  { background: var(--surface); }
+    .btn:active { transform: scale(.98); }
+    .btn-primary { background:#1d4ed8; border-color:#1d4ed8; color:#fff; }
+    .btn-primary:hover { background:#1e40af; }
+    .btn-green  { background:#16a34a; border-color:#16a34a; color:#fff; }
+    .btn-green:hover  { background:#15803d; }
+    .btn-red    { background:#dc2626; border-color:#dc2626; color:#fff; }
+    .btn-red:hover    { background:#b91c1c; }
+    .btn-amber  { background:#d97706; border-color:#d97706; color:#fff; }
+    .btn-amber:hover  { background:#b45309; }
+
+    /* ── Inputs ── */
+    input {
+      width: 100%; padding: 9px 12px; border-radius: 8px;
+      border: 1px solid var(--border); background: #fff;
+      color: #1e293b; font-size: 14px;
+    }
+    input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
+
+    /* ── Role badges ── */
+    .role-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 12px; border-radius: 20px; font-size: 13px; font-weight: 600;
+    }
+    .role-king    { background:#fef3c7; color:#92400e; }
+    .role-police  { background:#dbeafe; color:#1e40af; }
+    .role-robbery { background:#fee2e2; color:#991b1b; }
+    .role-thief   { background:#ede9fe; color:#4c1d95; }
+
+    /* ── Player rows ── */
+    .player-row {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:10px 0; border-bottom:1px solid var(--border);
+    }
+    .player-row:last-child { border-bottom:none; }
+    .avatar {
+      width:36px; height:36px; border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      font-size:13px; font-weight:600; flex-shrink:0;
+    }
+    .av-blue   { background:#dbeafe; color:#1e40af; }
+    .av-amber  { background:#fef3c7; color:#92400e; }
+    .av-red    { background:#fee2e2; color:#991b1b; }
+    .av-purple { background:#ede9fe; color:#4c1d95; }
+    .av-teal   { background:#ccfbf1; color:#115e59; }
+
+    /* ── Misc ── */
+    .pulse { animation: pulse 1.6s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .progress-bar  { height:6px; background:#e2e8f0; border-radius:3px; overflow:hidden; }
+    .progress-fill { height:100%; background:#1d4ed8; border-radius:3px; transition:width .4s; }
+    .tag-you { font-size:11px; padding:2px 8px; border-radius:10px; background:#dbeafe; color:#1e40af; font-weight:600; }
+    .catch-btn {
+      width:100%; text-align:left; padding:10px 14px; border-radius:8px;
+      border:1px solid var(--border); background:var(--surface);
+      cursor:pointer; font-size:14px; transition:background .15s;
+    }
+    .catch-btn:hover { background:#fee2e2; border-color:#fca5a5; color:#991b1b; }
+    .msg { padding:5px 0; font-size:13px; border-bottom:1px solid var(--border); }
+    .msg:last-child { border-bottom:none; }
+    .result-row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); }
+    .result-row:last-child { border-bottom:none; }
+    .correct-banner { background:#dcfce7; border:1px solid #86efac; border-radius:8px; padding:10px 14px; font-size:13px; color:#166534; margin-bottom:10px; }
+    .wrong-banner   { background:#fee2e2; border:1px solid #fca5a5; border-radius:8px; padding:10px 14px; font-size:13px; color:#991b1b; margin-bottom:10px; }
+
+    /* ════════════════════════════════════
+       CARD FLIP ANIMATION
+    ════════════════════════════════════ */
+    .card-scene {
+      width: 160px; height: 220px;
+      perspective: 900px;
+      cursor: default;
+    }
+    .card-flip {
+      width:100%; height:100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.7s cubic-bezier(.4,0,.2,1);
+    }
+    .card-flip.flipped { transform: rotateY(180deg); }
+
+    .card-face {
+      position: absolute; inset:0;
+      border-radius: 14px;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 10px;
+      border: 2px solid rgba(0,0,0,.08);
+    }
+    /* Back face — decorative pattern */
+    .card-back {
+      background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 50%, #2563eb 100%);
+      overflow: hidden;
+    }
+    .card-back::before {
+      content:'';
+      position:absolute; inset:8px;
+      border:2px solid rgba(255,255,255,.25);
+      border-radius:8px;
+    }
+    .card-back-pattern {
+      position:absolute; inset:0;
+      background-image:
+        repeating-linear-gradient(45deg,rgba(255,255,255,.04) 0px,rgba(255,255,255,.04) 2px,transparent 2px,transparent 12px),
+        repeating-linear-gradient(-45deg,rgba(255,255,255,.04) 0px,rgba(255,255,255,.04) 2px,transparent 2px,transparent 12px);
+    }
+    .card-back-logo {
+      position:relative; z-index:1;
+      font-size:40px; line-height:1;
+    }
+    .card-back-label {
+      position:relative; z-index:1;
+      color:rgba(255,255,255,.8); font-size:13px; font-weight:600; letter-spacing:2px;
+    }
+
+    /* Front face colours per role */
+    .card-front { transform: rotateY(180deg); }
+    .card-front-king    { background: linear-gradient(160deg,#fffbeb,#fef3c7); border-color:#fcd34d; }
+    .card-front-police  { background: linear-gradient(160deg,#eff6ff,#dbeafe); border-color:#93c5fd; }
+    .card-front-robbery { background: linear-gradient(160deg,#fff1f2,#fee2e2); border-color:#fca5a5; }
+    .card-front-thief   { background: linear-gradient(160deg,#f5f3ff,#ede9fe); border-color:#c4b5fd; }
+
+    .card-front-emoji { font-size:64px; line-height:1; filter:drop-shadow(0 2px 4px rgba(0,0,0,.12)); }
+    .card-front-name  { font-size:18px; font-weight:700; }
+    .card-front-pts   { font-size:13px; font-weight:500; opacity:.7; }
+
+    /* colours for front text */
+    .card-front-king   .card-front-name { color:#92400e; }
+    .card-front-king   .card-front-pts  { color:#b45309; }
+    .card-front-police .card-front-name { color:#1e40af; }
+    .card-front-police .card-front-pts  { color:#2563eb; }
+    .card-front-robbery .card-front-name{ color:#991b1b; }
+    .card-front-robbery .card-front-pts { color:#dc2626; }
+    .card-front-thief  .card-front-name { color:#4c1d95; }
+    .card-front-thief  .card-front-pts  { color:#7c3aed; }
+
+    /* Dealing animation — cards fly in */
+    @keyframes dealCard {
+      from { opacity:0; transform: translateY(-60px) rotate(-8deg) scale(.85); }
+      to   { opacity:1; transform: translateY(0)     rotate(0deg)  scale(1);   }
+    }
+    .card-deal { animation: dealCard .5s cubic-bezier(.2,.8,.3,1) both; }
+
+    /* Shuffle overlay */
+    #shuffle-overlay {
+      position:fixed; inset:0; background:rgba(15,23,42,.75);
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      z-index:999; gap:20px;
+    }
+    #shuffle-overlay.hidden { display:none; }
+    .shuffle-cards {
+      display:flex; gap:-20px; position:relative; height:120px; width:220px;
+    }
+    .shuffle-card {
+      position:absolute; width:70px; height:100px; border-radius:8px;
+      background:linear-gradient(135deg,#1e40af,#2563eb);
+      border:2px solid rgba(255,255,255,.2);
+      animation: shuffleAnim 0.6s ease-in-out infinite alternate;
+    }
+    .shuffle-card:nth-child(1){ left:0;   animation-delay:0s;    transform:rotate(-12deg); }
+    .shuffle-card:nth-child(2){ left:50px; animation-delay:.15s; transform:rotate(-4deg);  }
+    .shuffle-card:nth-child(3){ left:100px;animation-delay:.3s;  transform:rotate(4deg);   }
+    .shuffle-card:nth-child(4){ left:150px;animation-delay:.45s; transform:rotate(12deg);  }
+    @keyframes shuffleAnim {
+      from { transform: translateY(0) rotate(var(--r,0deg)); }
+      to   { transform: translateY(-16px) rotate(var(--r,0deg)); }
+    }
+    .shuffle-text { color:#fff; font-size:16px; font-weight:600; letter-spacing:1px; }
+
+    /* Result reveal — cards shake when wrong */
+    @keyframes shake {
+      0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)}
+      60%{transform:translateX(-5px)} 80%{transform:translateX(5px)}
+    }
+    .card-shake { animation: shake .5s ease; }
+
+    /* Glow on correct catch */
+    @keyframes correctGlow {
+      0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}
+      50%{box-shadow:0 0 0 12px rgba(34,197,94,.3)}
+    }
+    .card-correct { animation: correctGlow .8s ease 2; }
+  </style>
 </head>
-<body class="bg-gray-200">
-    <div class="container mx-auto p-4">
-        <h1 class="text-2xl font-bold text-center">Welcome to Chor Police</h1>
-        <div id="login" class="text-center mt-4">
-            <input id="username" class="border p-2" placeholder="Enter your name"/>
-            <button onclick="createRoom()" class="bg-blue-500 text-white p-2 ml-2">Create Room</button>
-            <input id="room-key" class="border p-2" placeholder="Enter room key"/>
-            <button onclick="joinGame()" class="bg-blue-500 text-white p-2 ml-2">Join Game</button>
-        </div>
-        <div id="game" class="mt-4 hidden">
-            <h2 id="player-name" class="text-xl font-bold"></h2>
-            <p id="round-number" class="text-lg font-semibold text-center mt-2"></p>
-            <button id="start-shuffle" onclick="startShuffle()" class="bg-green-500 text-white p-2 mt-2 hidden">Start Shuffle</button>
-            <div id="dashboard" class="mt-4">
-                <!-- Player's dashboard will be updated here -->
-            </div>
-            <div id="chat" class="mt-4">
-                <div id="messages" class="border p-2 h-64 overflow-y-scroll bg-white"></div>
-                <input id="message-input" class="border p-2 w-full mt-2" placeholder="Type a message..."/>
-                <button onclick="sendMessage()" class="bg-blue-500 text-white p-2 w-full mt-2">Send</button>
-            </div>
-        </div>
-        <div id="game-over" class="hidden">
-            <h2 class="text-xl font-bold">Game Over</h2>
-            <p id="game-over-round" class="font-semibold text-lg"></p>
-            <div id="rankings">
-                <!-- Rankings will be displayed here -->
-            </div>
-        </div>
+<body>
+<div style="max-width:540px;margin:0 auto;padding:1.5rem 1rem">
+
+<!-- ══ SCREEN 1: Lobby ══ -->
+<div id="s-lobby" class="screen active">
+  <div style="text-align:center;margin-bottom:2rem;padding-top:1rem">
+    <div style="font-size:48px;margin-bottom:8px">👮</div>
+    <h1 style="font-size:24px;font-weight:700">Chor Police</h1>
+    <p style="font-size:13px;color:var(--muted);margin-top:4px">4-player classic card game — online</p>
+  </div>
+  <div class="card" style="margin-bottom:12px">
+    <label style="font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;display:block;margin-bottom:8px">Your name</label>
+    <input id="inp-name" placeholder="Enter your name" style="margin-bottom:12px" />
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button class="btn btn-primary" onclick="uiCreateRoom()" style="justify-content:center">+ Create room</button>
+      <button class="btn" onclick="showJoin()" style="justify-content:center">&#128073; Join room</button>
     </div>
-    <script>
-        var socket = io();
-        var username;
-        var roomKey;
-        var king;
-        var police;
-        var players = {};
-        var roundNumber;
-        var maxRounds;
+  </div>
+  <div id="join-section" style="display:none" class="card">
+    <label style="font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;display:block;margin-bottom:8px">Room key</label>
+    <div style="display:flex;gap:8px">
+      <input id="inp-room" placeholder="e.g. ABCD12" />
+      <button class="btn btn-primary" onclick="uiJoin()" style="white-space:nowrap">Join &rarr;</button>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <p style="font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px">How to play</p>
+    <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:#374151">
+      <div>👑 <strong>King (900 pts)</strong> — always earns full points. Orders Police to catch Thief or Robbery.</div>
+      <div>🚔 <strong>Police (800 pts)</strong> — earns 800 pts if correct catch, <strong>0</strong> if wrong.</div>
+      <div>🥷 <strong>Robbery (600 pts)</strong> — earns 600 pts <em>unless</em> caught by Police.</div>
+      <div>🦹 <strong>Thief (400 pts)</strong> — earns 400 pts <em>unless</em> caught by Police.</div>
+    </div>
+  </div>
+</div>
 
-        function createRoom() {
-            socket.emit('create_room');
-        }
+<!-- ══ SCREEN 2: Waiting Room ══ -->
+<div id="s-waiting" class="screen">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;padding-top:.5rem">
+    <div>
+      <p style="font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.5px;text-transform:uppercase">Room key</p>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+        <span id="w-roomkey" style="font-size:22px;font-weight:700;letter-spacing:4px;font-family:monospace"></span>
+        <button class="btn" id="copy-btn" onclick="copyKey()" style="padding:4px 10px;font-size:12px">Copy</button>
+      </div>
+    </div>
+    <div style="text-align:right">
+      <p style="font-size:12px;color:var(--muted)">Players</p>
+      <p id="w-count" style="font-size:24px;font-weight:700">0<span style="font-size:14px;color:var(--muted)">/4</span></p>
+    </div>
+  </div>
+  <div id="w-players" class="card" style="margin-bottom:12px"></div>
+  <div id="w-waiting-msg" class="pulse" style="text-align:center;padding:12px;color:var(--muted);font-size:13px">Waiting for 4 players to join...</div>
+  <button id="w-start-btn" class="btn btn-green" style="width:100%;justify-content:center;display:none" onclick="uiStartShuffle()">
+    &#127183; Deal cards &amp; start
+  </button>
+</div>
 
-        function joinGame() {
-            username = document.getElementById('username').value;
-            roomKey = document.getElementById('room-key').value;
-            socket.emit('join', {'username': username, 'room_key': roomKey});
-            document.getElementById('login').classList.add('hidden');
-            document.getElementById('game').classList.remove('hidden');
-            document.getElementById('player-name').innerText = `Hello, ${username}`;
-        }
+<!-- ══ SCREEN 3: Game ══ -->
+<div id="s-game" class="screen">
+  <!-- Round header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;padding-top:.5rem">
+    <div>
+      <p style="font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.5px;text-transform:uppercase">Round</p>
+      <p id="g-round" style="font-size:24px;font-weight:700"></p>
+    </div>
+    <div style="width:130px">
+      <div class="progress-bar"><div id="g-progress" class="progress-fill" style="width:0%"></div></div>
+      <p id="g-progress-label" style="font-size:11px;color:var(--muted);margin-top:4px;text-align:right"></p>
+    </div>
+  </div>
 
-        function startShuffle() {
-            socket.emit('start_shuffle', {'room_key': roomKey});
-        }
+  <!-- ── ANIMATED CARD REVEAL ── -->
+  <div style="margin-bottom:16px">
+    <p style="font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:12px">Your card this round — tap to reveal</p>
+    <div style="display:flex;justify-content:center">
+      <div class="card-scene" id="my-card-scene" onclick="flipMyCard()">
+        <div class="card-flip" id="my-card-flip">
+          <!-- Back -->
+          <div class="card-face card-back">
+            <div class="card-back-pattern"></div>
+            <div class="card-back-logo">🃏</div>
+            <div class="card-back-label">TAP</div>
+          </div>
+          <!-- Front (populated by JS) -->
+          <div class="card-face card-front" id="my-card-front"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-        function sendMessage() {
-            var message = document.getElementById('message-input').value;
-            socket.emit('send_message', {'username': username, 'room_key': roomKey, 'message': message});
-            document.getElementById('message-input').value = '';
-        }
+  <!-- Public info -->
+  <div class="card" style="margin-bottom:12px">
+    <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Public info</p>
+    <div style="display:flex;gap:20px;font-size:14px">
+      <div>👑 King: <strong id="g-king-name">—</strong></div>
+      <div>🚔 Police: <strong id="g-police-name">—</strong></div>
+    </div>
+  </div>
 
-        socket.on('room_created', function(data) {
-            roomKey = data.room_key;
-            alert(`Room created with key: ${roomKey}`);
-            document.getElementById('room-key').value = roomKey;
-        });
+  <!-- Action -->
+  <div id="g-action" class="card" style="margin-bottom:12px"></div>
 
-        socket.on('room_full', function() {
-            alert('Room is full.');
-        });
+  <!-- Round result: all 4 cards revealed -->
+  <div id="g-all-cards" style="display:none;margin-bottom:12px">
+    <p style="font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:12px">Round result — all cards</p>
+    <div id="g-all-cards-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;justify-items:center"></div>
+  </div>
 
-        socket.on('room_not_found', function() {
-            alert('Room not found.');
-        });
+  <!-- Scoreboard -->
+  <div class="card" style="margin-bottom:12px">
+    <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">Scoreboard</p>
+    <div id="g-scores"></div>
+  </div>
 
-        socket.on('start_shuffle', function(data) {
-            roundNumber = data.round;
-            maxRounds = data.max_rounds;
-            document.getElementById('round-number').innerText = `Round ${roundNumber}/${maxRounds}`;
-            if (username == Object.keys(players)[0]) {
-                document.getElementById('start-shuffle').classList.remove('hidden');
-            }
-        });
+  <!-- Chat -->
+  <div class="card">
+    <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Chat</p>
+    <div id="g-messages" style="height:140px;overflow-y:auto;margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px">
+      <input id="g-chat-input" placeholder="Type a message..." style="flex:1" onkeydown="if(event.key==='Enter')uiSendMessage()" />
+      <button class="btn" onclick="uiSendMessage()">Send</button>
+    </div>
+  </div>
+</div>
 
-        socket.on('cards_assigned', function(data) {
-            players = data.players;
-            roundNumber = data.round;
-            maxRounds = data.max_rounds;
-            document.getElementById('round-number').innerText = `Round ${roundNumber}/${maxRounds}`;
-            var dashboard = document.getElementById('dashboard');
-            dashboard.innerHTML = `<p>Your role: ${players[username].card}</p>`;
-            king = Object.keys(players).find(key => players[key].card === 'King');
-            police = Object.keys(players).find(key => players[key].card === 'Police');
+<!-- ══ SCREEN 4: Game Over ══ -->
+<div id="s-over" class="screen">
+  <div style="text-align:center;padding:2rem 0 1.5rem">
+    <div style="font-size:48px;margin-bottom:8px">🏆</div>
+    <h2 style="font-size:22px;font-weight:700">Game Over!</h2>
+    <p id="o-rounds" style="font-size:13px;color:var(--muted);margin-top:4px"></p>
+  </div>
+  <div class="card" style="margin-bottom:16px">
+    <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px">Final rankings</p>
+    <div id="o-rankings"></div>
+  </div>
+  <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="location.reload()">Play again</button>
+</div>
 
-            dashboard.innerHTML += `<p>King: ${king}</p><p>Police: ${police}</p>`;
+</div><!-- /container -->
 
-            if (username === king) {
-                dashboard.innerHTML += `
-                    <p>As King, order the police to catch Thief or Robbery</p>
-                    <button onclick="giveOrder('Thief')" class="bg-yellow-500 text-white p-2 mt-2">Catch Thief</button>
-                    <button onclick="giveOrder('Robbery')" class="bg-yellow-500 text-white p-2 mt-2">Catch Robbery</button>
-                `;
-            } else if (username === police) {
-                dashboard.innerHTML += `<p>As Police, wait for the King's order</p>`;
-            } else {
-                dashboard.innerHTML += `<p>Wait for the Police's action</p>`;
-            }
-        });
+<!-- ══ Shuffle overlay ══ -->
+<div id="shuffle-overlay" class="hidden">
+  <div class="shuffle-cards">
+    <div class="shuffle-card" style="--r:-12deg"></div>
+    <div class="shuffle-card" style="--r:-4deg"></div>
+    <div class="shuffle-card" style="--r:4deg"></div>
+    <div class="shuffle-card" style="--r:12deg"></div>
+  </div>
+  <div class="shuffle-text">Shuffling cards...</div>
+</div>
 
-        socket.on('police_order', function(data) {
-            var dashboard = document.getElementById('dashboard');
-            dashboard.innerHTML += `<p>King's order: Catch the ${data.command}</p>`;
-            if (username === police) {
-                let options = Object.keys(players).filter(p => p !== police && players[p].card !== 'King').map(p => 
-                    `<button onclick="policeAction('${p}', '${data.command}')" class="bg-red-500 text-white p-2 mt-2">Catch ${p}</button>`
-                ).join('');
-                dashboard.innerHTML += `<p>As Police, choose a player to catch</p>${options}`;
-            }
-        });
+<script>
+var socket = io();
+var myName='', roomKey='', players={}, roundNum=0, maxRounds=20, king='', police='';
+var avColors=['av-blue','av-amber','av-red','av-purple','av-teal'];
+var rankEmoji=['🥇','🥈','🥉'];
+var myCardFlipped = false;
 
-        socket.on('update', function(data) {
-            players = data.players;
-            var dashboard = document.getElementById('dashboard');
-            dashboard.innerHTML = Object.keys(players).map(player => 
-                `<p>${player} (${players[player].card}): ${players[player].points} points</p>`
-            ).join('');
-        });
+/* ── helpers ── */
+function getInitials(n){ return n.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2); }
+function getAv(i){ return avColors[i%avColors.length]; }
+function show(id){ ['s-lobby','s-waiting','s-game','s-over'].forEach(s=>document.getElementById(s).classList.remove('active')); document.getElementById(id).classList.add('active'); }
+function showJoin(){ document.getElementById('join-section').style.display='block'; }
+function copyKey(){
+  navigator.clipboard && navigator.clipboard.writeText(roomKey);
+  var b=document.getElementById('copy-btn'); b.textContent='Copied!'; setTimeout(()=>b.textContent='Copy',1500);
+}
 
-        socket.on('round_complete', function(data) {
-            players = data.players;
-            roundNumber = data.round;
-            document.getElementById('round-number').innerText = `Round ${roundNumber}/${maxRounds}`;
-            var dashboard = document.getElementById('dashboard');
-            dashboard.innerHTML = Object.keys(players).map(player => 
-                `<p>${player} (${players[player].card}): ${players[player].points} points</p>`
-            ).join('');
-        });
+/* ── Role helpers ── */
+var ROLE_ICON  = {King:'👑',Police:'🚔',Robbery:'🥷',Thief:'🦹'};
+var ROLE_PTS   = {King:900, Police:800, Robbery:600, Thief:400};
+var ROLE_CLASS = {King:'card-front-king',Police:'card-front-police',Robbery:'card-front-robbery',Thief:'card-front-thief'};
+var ROLE_BADGE = {King:'role-king',Police:'role-police',Robbery:'role-robbery',Thief:'role-thief'};
+var ROLE_HINT  = {
+  King:    'You are King 👑 — give an order to the Police.',
+  Police:  'You are Police 🚔 — wait for King\'s order, then catch the right suspect.',
+  Robbery: 'You are Robbery 🥷 — stay hidden. Hope Police targets the Thief.',
+  Thief:   'You are Thief 🦹 — stay hidden. Hope Police targets the Robbery.'
+};
 
-        socket.on('game_over', function(data) {
-            document.getElementById('game').classList.add('hidden');
-            document.getElementById('game-over').classList.remove('hidden');
-            document.getElementById('game-over-round').innerText = `Game Over! Rounds played: ${data.round}`;
-            var rankingsDiv = document.getElementById('rankings');
-            rankingsDiv.innerHTML = '<h3>Rankings:</h3>';
-            data.rankings.forEach(function(rank, index) {
-                rankingsDiv.innerHTML += `<p>${index + 1}. ${rank.username}: ${rank.points} points</p>`;
-            });
-        });
+/* ── Card flip ── */
+function buildCardFront(card){
+  var f = document.getElementById('my-card-front');
+  f.className = 'card-face card-front '+ROLE_CLASS[card];
+  f.innerHTML = `<div class="card-front-emoji">${ROLE_ICON[card]}</div>
+    <div class="card-front-name">${card}</div>
+    <div class="card-front-pts">${ROLE_PTS[card]} pts</div>`;
+}
+function flipMyCard(){
+  if(myCardFlipped) return;
+  myCardFlipped = true;
+  document.getElementById('my-card-flip').classList.add('flipped');
+}
+function resetMyCard(){
+  myCardFlipped = false;
+  document.getElementById('my-card-flip').classList.remove('flipped');
+}
 
-        socket.on('receive_message', function(data) {
-            var messages = document.getElementById('messages');
-            messages.innerHTML += `<p><strong>${data.username}:</strong> ${data.message}</p>`;
-            messages.scrollTop = messages.scrollHeight;
-        });
+/* ── Mini card for all-cards reveal ── */
+function miniCard(playerName, card, highlight){
+  var w=80, h=112;
+  var cls = ROLE_CLASS[card]||'';
+  var extra = highlight==='correct' ? 'card-correct' : (highlight==='wrong' ? 'card-shake' : '');
+  return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;animation:dealCard .5s ease both;animation-delay:${Object.keys(players).indexOf(playerName)*0.12}s">
+    <div class="card-scene" style="width:${w}px;height:${h}px;cursor:default">
+      <div class="card-flip flipped ${extra}" style="transition:none">
+        <div class="card-face card-back"><div class="card-back-pattern"></div></div>
+        <div class="card-face card-front ${cls}" style="gap:4px">
+          <div style="font-size:30px;line-height:1">${ROLE_ICON[card]||'?'}</div>
+          <div style="font-size:11px;font-weight:700">${card}</div>
+          <div style="font-size:10px;opacity:.7">${ROLE_PTS[card]} pts</div>
+        </div>
+      </div>
+    </div>
+    <div style="font-size:11px;font-weight:600;color:var(--muted);text-align:center;max-width:${w}px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${playerName}</div>
+  </div>`;
+}
 
-        function giveOrder(command) {
-            socket.emit('king_order', {'king': username, 'command': command, 'room_key': roomKey});
-        }
+/* ── Shuffle overlay ── */
+function showShuffle(){ document.getElementById('shuffle-overlay').classList.remove('hidden'); }
+function hideShuffle(){ document.getElementById('shuffle-overlay').classList.add('hidden'); }
 
-        function policeAction(target, command) {
-            socket.emit('police_action', {'police': username, 'target': target, 'command': command, 'king': king, 'room_key': roomKey});
-        }
-    </script>
+/* ── Socket actions ── */
+function uiCreateRoom(){
+  myName = document.getElementById('inp-name').value.trim();
+  if(!myName){ alert('Enter your name first.'); return; }
+  socket.emit('create_room');
+}
+function uiJoin(){
+  myName = document.getElementById('inp-name').value.trim();
+  roomKey = document.getElementById('inp-room').value.trim().toUpperCase();
+  if(!myName||!roomKey){ alert('Enter name and room key.'); return; }
+  socket.emit('join',{username:myName,room_key:roomKey});
+}
+function uiStartShuffle(){
+  showShuffle();
+  setTimeout(()=>socket.emit('start_shuffle',{room_key:roomKey}), 1200);
+}
+function uiSendMessage(){
+  var m=document.getElementById('g-chat-input').value.trim();
+  if(!m) return;
+  socket.emit('send_message',{username:myName,room_key:roomKey,message:m});
+  document.getElementById('g-chat-input').value='';
+}
+function giveOrder(cmd){ socket.emit('king_order',{king:myName,command:cmd,room_key:roomKey}); }
+function policeAction(target,cmd){ socket.emit('police_action',{police:myName,target,command:cmd,king,room_key:roomKey}); }
+
+/* ── Render helpers ── */
+function renderWaitingPlayers(ps){
+  var keys=Object.keys(ps);
+  document.getElementById('w-count').innerHTML=keys.length+'<span style="font-size:14px;color:var(--muted)">/4</span>';
+  document.getElementById('w-players').innerHTML=keys.map((p,i)=>`
+    <div class="player-row">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="avatar ${getAv(i)}">${getInitials(p)}</div>
+        <span style="font-size:14px">${p}</span>
+      </div>
+      ${p===myName?'<span class="tag-you">You</span>':''}
+    </div>`).join('');
+  if(keys.length===4) document.getElementById('w-waiting-msg').style.display='none';
+}
+
+function renderScores(){
+  document.getElementById('g-scores').innerHTML=Object.keys(players).map((p,i)=>{
+    var info=players[p];
+    return `<div class="player-row">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="avatar ${getAv(i)}">${getInitials(p)}</div>
+        <span style="font-size:14px">${p}${p===myName?' <span class="tag-you" style="margin-left:4px">You</span>':''}</span>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:17px;font-weight:700">${info.points}</div>
+        <div style="font-size:11px;color:var(--muted)">pts</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderRoundHeader(){
+  document.getElementById('g-round').textContent = roundNum+' / '+maxRounds;
+  document.getElementById('g-progress').style.width = (roundNum/maxRounds*100)+'%';
+  document.getElementById('g-progress-label').textContent = Math.round(roundNum/maxRounds*100)+'%';
+}
+
+function renderAction(state, orderCmd){
+  var d=document.getElementById('g-action');
+  if(state==='waiting_king' && myName===king){
+    d.innerHTML=`<p style="font-size:13px;color:var(--muted);margin-bottom:12px">As <strong>King</strong>, give an order to the Police:</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button class="btn btn-red"   style="justify-content:center" onclick="giveOrder('Robbery')">🥷 Catch Robbery</button>
+        <button class="btn btn-amber" style="justify-content:center" onclick="giveOrder('Thief')">🦹 Catch Thief</button>
+      </div>`;
+  } else if(state==='waiting_king'){
+    d.innerHTML=`<p class="pulse" style="font-size:13px;color:var(--muted)">⏳ Waiting for King <strong>${king}</strong> to give an order...</p>`;
+  } else if(state==='waiting_police' && myName===police){
+    var targets=Object.keys(players).filter(p=>p!==police && players[p].card!=='King');
+    d.innerHTML=`<p style="font-size:13px;color:var(--muted);margin-bottom:10px">King ordered: <strong>Catch the ${orderCmd}</strong>. Pick a suspect:</p>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${targets.map(t=>`<button class="catch-btn" onclick="policeAction('${t}','${orderCmd}')">🚔 Catch <strong>${t}</strong></button>`).join('')}
+      </div>`;
+  } else if(state==='waiting_police'){
+    d.innerHTML=`<p class="pulse" style="font-size:13px;color:var(--muted)">⏳ Police <strong>${police}</strong> is choosing... King ordered: Catch the <strong>${orderCmd||'?'}</strong></p>`;
+  } else if(state==='round_done'){
+    var isHost = myName===Object.keys(players)[0];
+    d.innerHTML = isHost
+      ? `<button class="btn btn-green" style="width:100%;justify-content:center" onclick="uiStartShuffle()">🃏 Deal next round</button>`
+      : `<p style="font-size:13px;color:var(--muted)">⏳ Waiting for host to deal next round...</p>`;
+  } else {
+    d.innerHTML='';
+  }
+}
+
+/* ════════════════════════════════
+   SOCKET EVENTS
+════════════════════════════════ */
+socket.on('room_created',function(data){
+  roomKey=data.room_key;
+  document.getElementById('inp-room').value=roomKey;
+  socket.emit('join',{username:myName,room_key:roomKey});
+});
+socket.on('room_full',   function(){ alert('Room is full (max 4 players).'); });
+socket.on('room_not_found',function(){ alert('Room not found. Double-check the key.'); });
+
+socket.on('update',function(data){
+  players=data.players;
+  document.getElementById('w-roomkey').textContent=roomKey;
+  show('s-waiting');
+  renderWaitingPlayers(players);
+});
+
+socket.on('start_shuffle',function(data){
+  roundNum=data.round; maxRounds=data.max_rounds;
+  if(myName===data.host) document.getElementById('w-start-btn').style.display='flex';
+});
+
+socket.on('cards_assigned',function(data){
+  hideShuffle();
+  players=data.players; roundNum=data.round; maxRounds=data.max_rounds;
+  king   = Object.keys(players).find(k=>players[k].card==='King')||'';
+  police = Object.keys(players).find(k=>players[k].card==='Police')||'';
+  var myCard = players[myName] ? players[myName].card : '';
+
+  show('s-game');
+  renderRoundHeader();
+
+  /* reset card flip */
+  resetMyCard();
+  buildCardFront(myCard);
+  /* deal animation */
+  document.getElementById('my-card-scene').classList.remove('card-deal');
+  void document.getElementById('my-card-scene').offsetWidth; // reflow
+  document.getElementById('my-card-scene').classList.add('card-deal');
+
+  document.getElementById('g-king-name').textContent  = king||'?';
+  document.getElementById('g-police-name').textContent= police||'?';
+  document.getElementById('g-all-cards').style.display='none';
+  renderScores();
+  renderAction('waiting_king','');
+});
+
+socket.on('police_order',function(data){
+  renderAction('waiting_police',data.command);
+});
+
+socket.on('round_complete',function(data){
+  players=data.players; roundNum=data.round; maxRounds=data.max_rounds;
+  renderRoundHeader();
+  renderScores();
+
+  /* banner */
+  var d=document.getElementById('g-action');
+  if(data.correct_catch){
+    d.innerHTML=`<div class="correct-banner">✅ Police caught the right person! <strong>${data.target}</strong> was indeed the ${data.command}.<br>
+      <small>Police +800 pts | ${data.target} +0 pts</small></div>`;
+  } else {
+    d.innerHTML=`<div class="wrong-banner">❌ Wrong catch! <strong>${data.target}</strong> was actually the <strong>${data.target_card}</strong>, not ${data.command}.<br>
+      <small>Police +0 pts | ${data.target} gets their own ${ROLE_PTS[data.target_card]||''} pts</small></div>`;
+  }
+
+  /* reveal all 4 cards with mini flip cards */
+  var grid=document.getElementById('g-all-cards-grid');
+  grid.innerHTML = Object.keys(players).map(p=>{
+    var h = p===data.target ? (data.correct_catch?'correct':'wrong') : '';
+    return miniCard(p, players[p].card, h);
+  }).join('');
+  document.getElementById('g-all-cards').style.display='block';
+
+  /* delay then show next-round button */
+  setTimeout(()=>renderAction('round_done',''), 3000);
+});
+
+socket.on('game_over',function(data){
+  show('s-over');
+  document.getElementById('o-rounds').textContent='Played '+data.round+' rounds';
+  document.getElementById('o-rankings').innerHTML=data.rankings.map((r,i)=>
+    `<div class="result-row">
+      <div style="width:30px;height:30px;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${rankEmoji[i]||(i+1)}</div>
+      <div style="flex:1;font-size:14px">${r.username}</div>
+      <div style="font-size:17px;font-weight:700">${r.points} <span style="font-size:12px;color:var(--muted)">pts</span></div>
+    </div>`).join('');
+});
+
+socket.on('receive_message',function(data){
+  var msgs=document.getElementById('g-messages');
+  msgs.innerHTML+=`<div class="msg"><strong>${data.username}:</strong> ${data.message}</div>`;
+  msgs.scrollTop=msgs.scrollHeight;
+});
+</script>
 </body>
 </html>
